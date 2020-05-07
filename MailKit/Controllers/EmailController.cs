@@ -4,12 +4,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace MailKit.Controllers
 {
+    [Route("email")]
     public class EmailController : Controller
     {
         private readonly IEmailSender _emailSender;
@@ -28,12 +27,29 @@ namespace MailKit.Controllers
         {
             try
             {
-                await SendEmailMessageAsync(email.Destino, email.Assunto, email.Mensagem,email.File);
+                await SendEmailMessageAsync(email.Destino, email.Assunto, email.Mensagem, email.File);
                 return RedirectToAction(nameof(EmailSended));
             }
-            catch(Exception)
+            catch (Exception)
             {
                 return RedirectToAction(nameof(EmailFail));
+            }
+        }
+
+        [HttpPost("send")]
+        public async Task<IActionResult> SendEmail([FromBody]Email email)
+        {
+            Message<Email> message = new Message<Email>();
+            try
+            {
+                await _emailSender.SendEmailApiAsync(email);
+                return CustomResponse(email);
+            }
+            catch (Exception ex)
+            {
+                List<string> errors = new List<string>();
+                errors.Add(ex.Message);
+                return CustomResponse(null, "Error", errors);
             }
         }
 
@@ -50,6 +66,29 @@ namespace MailKit.Controllers
         public IActionResult EmailFail()
         {
             return View();
+        }
+
+        protected IActionResult CustomResponse(object result = null, string situacao = "OK", List<string> errors = null)
+        {
+
+            if (situacao == "OK")
+            {
+                return Ok(new
+                {
+                    success = true,
+                    data = result
+                });
+            }
+            else
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    errors = errors
+                });
+
+            }
+
         }
     }
 }

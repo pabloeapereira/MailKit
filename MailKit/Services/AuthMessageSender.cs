@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using MailKit.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.Extensions.Options;
@@ -20,6 +21,9 @@ namespace MailKit.Services
         public async Task SendEmailAsync(string email, string subject, string message, IFormFile attachment)
             => await ExecuteAsync(email, subject, message, attachment);
 
+        public async Task SendEmailApiAsync(Email email)
+            => await ExecuteApiAsync(email);
+
         private async Task ExecuteAsync(string email, string subject, string message, IFormFile attachment)
         {
             try
@@ -29,6 +33,23 @@ namespace MailKit.Services
                     smtp.Credentials = new NetworkCredential(_emailSettings.UserNameEmail, _emailSettings.UserNamePassword);
                     smtp.EnableSsl = _emailSettings.EnableSsl;
                     await smtp.SendMailAsync(CreateMailMessage(email, subject, message,attachment));
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        private async Task ExecuteApiAsync(Email email)
+        {
+            try
+            {
+                using (SmtpClient smtp = new SmtpClient(email.PrimaryDomain, email.PrimaryPort))
+                {
+                    smtp.Credentials = new NetworkCredential(email.UserNameEmail, email.UserNamePassword);
+                    smtp.EnableSsl = email.EnableSsl;
+                    await smtp.SendMailAsync(CreateApiMailMessage(email));
                 }
             }
             catch (Exception ex)
@@ -53,6 +74,24 @@ namespace MailKit.Services
                 mail.CC.Add(new MailAddress(_emailSettings.CcEmail));
             if (attachment != null)
                 mail.Attachments.Add(new Attachment(attachment.OpenReadStream(), attachment.FileName, attachment.ContentType));
+            return mail;
+        }
+
+        private MailMessage CreateApiMailMessage(Email email)
+        {
+            var mail = new MailMessage()
+            {
+                From = new MailAddress(email.UserNameEmail, email.DisplayName),
+                Subject = email.Subject,
+                Body = email.Message,
+                IsBodyHtml = email.IsBodyHtml,
+                Priority = email.Priority,
+            };
+            mail.To.Add(new MailAddress(email.ToEmail));
+            if (!string.IsNullOrEmpty(email.CcEmail))
+                mail.CC.Add(new MailAddress(email.CcEmail));
+            if(!string.IsNullOrEmpty(email.BccEmail))
+                mail.Bcc.Add(new MailAddress(email.CcEmail));
             return mail;
         }
     }
