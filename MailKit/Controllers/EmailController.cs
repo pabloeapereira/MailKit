@@ -39,11 +39,26 @@ namespace MailKit.Controllers
         [HttpPost("send")]
         public async Task<IActionResult> SendEmail([FromBody]Email email)
         {
-            Message<Email> message = new Message<Email>();
             try
             {
                 await _emailSender.SendEmailApiAsync(email);
                 return CustomResponse(email);
+            }
+            catch (Exception ex)
+            {
+                List<string> errors = new List<string>();
+                errors.Add(ex.Message);
+                return CustomResponse(null, "Error", errors);
+            }
+        }
+
+        [HttpPost("send-many")]
+        public async Task<IActionResult> SendEmails([FromBody] IEnumerable<Email> emails)
+        {
+            try
+            {
+                await _emailSender.SendEmailApiAsync(emails);
+                return CustomResponse();
             }
             catch (Exception ex)
             {

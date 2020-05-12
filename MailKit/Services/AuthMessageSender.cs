@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Mail;
 using System.Threading.Tasks;
@@ -23,6 +26,9 @@ namespace MailKit.Services
 
         public async Task SendEmailApiAsync(Email email)
             => await ExecuteApiAsync(email);
+        public async Task SendEmailApiAsync(IEnumerable<Email> emails)
+            => await ExecuteApiAsync(emails);
+
 
         private async Task ExecuteAsync(string email, string subject, string message, IFormFile attachment)
         {
@@ -49,6 +55,28 @@ namespace MailKit.Services
                 {
                     smtp.Credentials = new NetworkCredential(email.UserNameEmail, email.UserNamePassword);
                     smtp.EnableSsl = email.EnableSsl;
+                    await smtp.SendMailAsync(CreateApiMailMessage(email));
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        private async Task ExecuteApiAsync(IEnumerable<Email> emails)
+        {
+            try
+            {
+                using var smtp = new SmtpClient(emails.FirstOrDefault().PrimaryDomain,
+                    emails.FirstOrDefault().PrimaryPort)
+                {
+                    Credentials = new NetworkCredential(emails.FirstOrDefault().UserNameEmail,
+                        emails.FirstOrDefault().UserNamePassword),
+                    EnableSsl = emails.FirstOrDefault().EnableSsl
+                };
+                foreach (var email in emails)
+                {
                     await smtp.SendMailAsync(CreateApiMailMessage(email));
                 }
             }
